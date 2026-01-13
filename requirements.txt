@@ -1,0 +1,13 @@
+pandas
+torch
+tqdm
+transformers 
+dask
+pyarrow
+fastparquet
+scikit-learn 
+numpy
+seaborn 
+matplotlib
+umap-learn
+sentence_transformers
