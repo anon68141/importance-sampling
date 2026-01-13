@@ -1,6 +1,6 @@
 # Importance Sampling — Reproduction Code
 
-This repository contains the code used to run the experiments for the paper **"[Paper Title]"**.  
+This repository contains the code used to run the experiments for the paper **"Evaluating Model Performance and Fairness without Labeled Representative Data"**.  
 It provides all scripts needed to reproduce the numerical results, including data preprocessing, experiment execution, and evaluation.
 
 The goal of this repository is to make all analyses transparent, reproducible, and easy to run.
