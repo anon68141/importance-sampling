@@ -23,7 +23,7 @@ This codebase provides:
 Clone the repository:
 
 ```bash
-git clone https://github.com/anno68414/importance-sampling.git
+git clone https://github.com/anon68414/importance-sampling.git
 cd importance-sampling
 ```
 
