@@ -3,6 +3,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.utils import shuffle
+from sklearn.model_selection import cross_val_predict, StratifiedKFold  # NEW
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -13,9 +14,13 @@ from sklearn.metrics import roc_auc_score
 class ImportanceSampler:
     """Importance sampling via random forest-based density ratio estimation."""
 
-    def __init__(self, source, target, ignore_cols=None, model = 'rf'):
-        self.source = source.copy()
-        self.target = target.copy()
+    def __init__(self, source, target, ignore_cols=None, model='rf'):
+        self.source = source.copy().reset_index(drop=True)
+        self.target = target.copy().reset_index(drop=True)
+
+        # Ensure target indices start after source indices
+        self.target.index += len(self.source)
+        
         self.ignore_cols = ignore_cols if ignore_cols is not None else []
         self.model = model
         self.weights_ = None
@@ -23,11 +28,14 @@ class ImportanceSampler:
 
     def fit(self):
         # Drop ignored columns and missing values
-        X_source = self.source.drop(columns=self.ignore_cols, errors='ignore').dropna()
-        X_target = self.target.drop(columns=self.ignore_cols, errors='ignore').dropna()
+        X_source = self.source.drop(columns=self.ignore_cols, errors='ignore').dropna().copy()
+        X_target = self.target.drop(columns=self.ignore_cols, errors='ignore').dropna().copy()
 
         X_source["__label__"] = 0  # Source domain label
         X_target["__label__"] = 1  # Target domain label
+
+        # Keep original source row positions so weights align back to self.source
+        source_idx = X_source.index
 
         # Combine and shuffle
         df_combined = pd.concat([X_source, X_target], axis=0)
@@ -59,19 +67,33 @@ class ImportanceSampler:
             )
         else:
             raise ValueError("model must be 'rf' or 'logreg'")
-        
-        clf.fit(X, y)
 
-        # Predict D(x) for source samples
-        X_source_features = X_source.drop(columns="__label__")
-        D = clf.predict_proba(X_source_features)[:, 1]
+        # out-of-fold probabilities
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        proba_oof = cross_val_predict(
+            clf,
+            X,
+            y,
+            cv=cv,
+            method="predict_proba",
+            n_jobs=-1
+        )[:, 1]
+
+        # Get source probabilities, aligned by source index
+        D_source = pd.Series(proba_oof, index=df_combined.index).loc[source_idx].values
 
         # Compute importance weights
         eps = 1e-6
-        weights = D / (1.0 - D + eps)
-        self.weights_ = np.nan_to_num(weights / np.sum(weights), nan=0.0)
+        weights = D_source / (1.0 - D_source + eps)
+        weights = np.nan_to_num(weights / np.sum(weights), nan=0.0)
 
-        # Store the classifier
+        # Put weights back onto full original source rows
+        full_weights = np.zeros(len(self.source))
+        full_weights[self.source.index.get_indexer(source_idx)] = weights
+        self.weights_ = full_weights
+
+        # Fit final model on all data so sample() still works
+        clf.fit(X, y)
         self._clf = clf
 
     def sample(self, n, attempts=10, replace=False, stratify=None, frac_y_1 = None, label_col = None):
