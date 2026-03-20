@@ -186,7 +186,7 @@ def plot_pca_tripanel_hexbin(df_source, df_target, df_sample, ignore_cols=None, 
     plt.show()
 
 
-def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None):
+def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None, front_scale = 1, legend_loc = "upper right"):
     ignore_cols = ignore_cols or []
 
     def preprocess(df):
@@ -222,6 +222,9 @@ def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None):
     # Combine into a single frame
     fulldata = pd.concat([df_s, df_t, df_p], axis=0)
 
+    # Slightly bigger text
+    sns.set_context("notebook", font_scale= front_scale)
+
     # Plot KDE jointplot
     g = sns.jointplot(
         data=fulldata,
@@ -232,7 +235,12 @@ def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None):
         joint_kws={"common_norm": False, "levels": 5, "linewidths": 1},
         marginal_kws={"common_norm": False},
     )
-
+    
+    # Move legend to bottom-left
+    if g.ax_joint.legend_ and legend_loc != "upper right":
+        g.ax_joint.legend_.set_bbox_to_anchor((0, 0))  # bottom-left corner
+        g.ax_joint.legend_._loc = 3  # 3 = 'lower left'
+        
     return g
 
 
